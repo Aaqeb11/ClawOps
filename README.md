@@ -1,20 +1,20 @@
 # 🦞 ClawOps — AI-Powered DevOps Monitoring
 
-> Intelligent AWS infrastructure monitoring powered by OpenClaw, delivering real-time insights and actionable alerts directly to your Slack channel.
+> Intelligent cloud infrastructure monitoring powered by OpenClaw, delivering real-time insights and actionable alerts directly to your Slack channel.
 
 ---
 
 ## Overview
 
-ClawOps is an AI-driven DevOps monitoring system built on top of [OpenClaw](https://openclaw.ai) — an open-source personal AI agent runtime. It continuously watches your AWS infrastructure, understands what it sees, and communicates with your development team through Slack in plain, human language.
+ClawOps is an AI-driven DevOps monitoring system built on top of [OpenClaw](https://openclaw.ai) — an open-source personal AI agent runtime. It continuously watches your cloud infrastructure, understands what it sees, and communicates with your development team through Slack in plain, human language.
 
-Rather than just forwarding raw CloudWatch metrics or threshold breach alerts, ClawOps uses AI to **correlate signals, reason about anomalies, and suggest — or take — appropriate action**. Think of it as giving your infrastructure a voice, and your team a way to talk back to it.
+Rather than just forwarding raw metrics or threshold breach alerts, ClawOps uses AI to **correlate signals, reason about anomalies, and suggest — or take — appropriate action**. Think of it as giving your infrastructure a voice, and your team a way to talk back to it.
 
 ---
 
 ## Purpose
 
-Modern DevOps teams are drowning in monitoring noise. Dashboards go unread, alerts get ignored, and by the time a real incident surfaces it's already causing damage. ClawOps exists to fix this by sitting between your AWS infrastructure and your team, acting as an intelligent intermediary that:
+Modern DevOps teams are drowning in monitoring noise. Dashboards go unread, alerts get ignored, and by the time a real incident surfaces it's already causing damage. ClawOps exists to fix this by sitting between your cloud infrastructure and your team, acting as an intelligent intermediary that:
 
 - Understands the *context* behind metrics, not just the numbers
 - Knows the difference between a traffic spike and a memory leak
@@ -26,20 +26,20 @@ Modern DevOps teams are drowning in monitoring noise. Dashboards go unread, aler
 ## Goals
 
 **Short-term (Prototype)**
-- Monitor one or more EC2 instances via AWS CloudWatch
+- Monitor one or more compute instances via your cloud provider's native metrics API
 - Deliver periodic health summaries to a designated Slack channel
 - Detect and immediately alert on anomalous behaviour (CPU spikes, memory pressure, network saturation, etc.)
 - Allow basic remediation commands to be issued directly from Slack
 
 **Medium-term**
-- Support multiple instances and instance groups
+- Support multiple instances and instance groups across providers
 - Build memory of each instance's "normal" behaviour over time
 - Enable natural language queries from Slack ("what happened to prod-server-2 last night?")
 - Expand action coverage (scaling, log fetching, service restarts)
 
 **Long-term**
-- Multi-region and multi-account AWS support
-- Support for RDS, ECS, Lambda, and other AWS services
+- Multi-region and multi-account support across cloud providers
+- Support for managed databases, containers, serverless functions, and other cloud-native services
 - Customisable alerting profiles per team or environment
 - Incident timeline generation and post-mortem assistance
 
@@ -49,11 +49,18 @@ Modern DevOps teams are drowning in monitoring noise. Dashboards go unread, aler
 
 The system is composed of three layers that work together continuously:
 
-### 1. Data Collection — AWS SDK (JavaScript v3)
+### 1. Data Collection — Cloud Provider SDK
 
-A custom OpenClaw skill written in TypeScript uses the **AWS SDK for JavaScript v3** (`@aws-sdk/client-ec2`, `@aws-sdk/client-cloudwatch`) to pull live metrics and instance state from AWS. This includes CPU utilisation, memory, disk I/O, network throughput, and instance health status.
+A custom OpenClaw skill written in TypeScript uses your **cloud provider's SDK** to pull live metrics and instance state. This includes CPU utilisation, memory, disk I/O, network throughput, and instance health status.
+
+ClawOps ships with adapters for major cloud providers out of the box, and the provider interface is designed to be extensible — so adding support for a new platform is straightforward.
 
 The skill is invoked on a schedule (heartbeat) and also on-demand when commands arrive from Slack.
+
+**Currently supported providers:**
+- AWS (EC2 + CloudWatch)
+- GCP (Compute Engine + Cloud Monitoring) *(planned)*
+- Azure (Virtual Machines + Azure Monitor) *(planned)*
 
 ### 2. AI Analysis — OpenClaw Agent
 
@@ -81,10 +88,11 @@ Slack serves as both the **notification surface and the command interface**. The
 
 ```
 ┌─────────────────────────────────┐
-│         AWS Infrastructure       │
-│  EC2 Instances · CloudWatch      │
+│       Cloud Infrastructure       │
+│  Compute · Managed Services      │
+│  AWS · GCP · Azure · and more    │
 └──────────────┬──────────────────┘
-               │  AWS SDK v3 (TypeScript)
+               │  Cloud Provider SDK (TypeScript)
                ▼
 ┌─────────────────────────────────┐
 │       ClawOps Skill              │
@@ -119,10 +127,10 @@ Slack serves as both the **notification surface and the command interface**. The
 | Layer | Technology |
 |---|---|
 | AI Agent Runtime | [OpenClaw](https://openclaw.ai) |
-| AWS Metrics & Control | AWS SDK for JavaScript v3 |
+| Cloud Metrics & Control | Cloud Provider SDK (pluggable) |
 | Language | TypeScript |
 | Communication | Slack (via OpenClaw's native Slack integration) |
-| Infrastructure Setup | Terraform (IAM roles, CloudWatch alarms) |
+| Infrastructure Setup | Terraform (IAM / permissions, metric alarms) |
 | Package Manager | pnpm |
 
 ---
@@ -147,14 +155,18 @@ clawops/
 ├── README.md
 ├── skill/
 │   ├── skill.md              # OpenClaw skill definition
-│   ├── monitor.ts            # CloudWatch & EC2 metrics fetching
+│   ├── monitor.ts            # Metrics fetching (provider-agnostic interface)
 │   ├── actions.ts            # Remediation action handlers
 │   └── thresholds.json       # Configurable alert thresholds
+├── providers/
+│   ├── aws.ts                # AWS adapter (EC2 + CloudWatch)
+│   ├── gcp.ts                # GCP adapter (Compute Engine + Cloud Monitoring)
+│   └── azure.ts              # Azure adapter (VMs + Azure Monitor)
 ├── terraform/
-│   ├── main.tf               # IAM roles & CloudWatch alarm setup
+│   ├── main.tf               # Permissions & metric alarm setup
 │   └── variables.tf
 └── config/
-    └── instances.json        # Instances to monitor
+    └── instances.json        # Instances to monitor (with provider field)
 ```
 
 ---
