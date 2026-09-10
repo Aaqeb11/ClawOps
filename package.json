@@ -1,5 +1,5 @@
 {
-  "name": "ClawOps",
+  "name": "clawops",
   "packageManager": "yarn@4.9.2",
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
@@ -9,5 +9,13 @@
     "@types/node": "^25.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "version": "0.1.0",
+  "private": true,
+  "bin": "dist/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "clawops": "node dist/cli.js",
+    "dev": "ts-node src/cli.ts"
   }
 }

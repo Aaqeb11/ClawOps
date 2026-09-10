@@ -1125,18 +1125,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ClawOps@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "ClawOps@workspace:."
-  dependencies:
-    "@aws-sdk/client-cloudwatch": "npm:^3.1000.0"
-    "@aws-sdk/client-ec2": "npm:^3.1000.0"
-    "@types/node": "npm:^25.3.2"
-    ts-node: "npm:^10.9.2"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
-
 "acorn-walk@npm:^8.1.1":
   version: 8.3.5
   resolution: "acorn-walk@npm:8.3.5"
@@ -1168,6 +1156,20 @@ __metadata:
   checksum: 10c0/bb69b55ba7f0456e3dc07d0cfd9467f985581f640ba8fd426b08754a6737ee0d6cf3b50607941e5255f04c83075b952ece0599f978dd4d20f1e95461104c5ffd
   languageName: node
   linkType: hard
+
+"clawops@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "clawops@workspace:."
+  dependencies:
+    "@aws-sdk/client-cloudwatch": "npm:^3.1000.0"
+    "@aws-sdk/client-ec2": "npm:^3.1000.0"
+    "@types/node": "npm:^25.3.2"
+    ts-node: "npm:^10.9.2"
+    typescript: "npm:^5.9.3"
+  bin:
+    clawops: dist/cli.js
+  languageName: unknown
+  linkType: soft
 
 "create-require@npm:^1.1.0":
   version: 1.1.1

@@ -12,50 +12,25 @@ import {
   GetMetricStatisticsCommand,
 } from "@aws-sdk/client-cloudwatch";
 
+import type { InstanceMetrics, MonitorReport, HealthCheck } from "../types";
+
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const REGION = process.env.AWS_REGION || "me-central-1";
+const REGION = process.env.AWS_REGION || "ap-south-1";
 
-const THRESHOLDS = {
-  cpu: { warning: 85, critical: 95 }, // percent
-  disk: { warning: 80, critical: 90 }, // percent
-  statusCheckFailed: true, // always alert if status check fails
-};
+// Static limits are a placeholder. They are replaced by per-instance baselines
+// once `baselines` has enough history — see src/monitor/baseline.ts.
+const CPU_LIMITS = { warning: 85, critical: 95 }; // percent
 
 const ec2 = new EC2Client({ region: REGION });
 const cloudwatch = new CloudWatchClient({ region: REGION });
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface InstanceMetrics {
-  instanceId: string;
-  name: string;
-  state: string;
-  type: string;
-  az: string;
-  statusCheckPassed: boolean;
-  cpu: {
-    average: number | null;
-    severity: "ok" | "warning" | "critical";
-  };
-  anomalies: string[];
-}
-
-export interface MonitorReport {
-  region: string;
-  timestamp: string;
-  instanceCount: number;
-  instances: InstanceMetrics[];
-  hasAnomalies: boolean;
-  summary: string;
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function cpuSeverity(value: number | null): "ok" | "warning" | "critical" {
   if (value === null) return "ok";
-  if (value >= THRESHOLDS.cpu.critical) return "critical";
-  if (value >= THRESHOLDS.cpu.warning) return "warning";
+  if (value >= CPU_LIMITS.critical) return "critical";
+  if (value >= CPU_LIMITS.warning) return "warning";
   return "ok";
 }
 
@@ -78,80 +53,84 @@ async function getCpuUtilization(instanceId: string): Promise<number | null> {
   const datapoints = response.Datapoints ?? [];
   if (datapoints.length === 0) return null;
 
-  // Return the most recent datapoint
   const sorted = datapoints.sort(
     (a, b) => (b.Timestamp?.getTime() ?? 0) - (a.Timestamp?.getTime() ?? 0),
   );
   return sorted[0].Average ?? null;
 }
 
-// ── Core: Discover + Monitor All Instances ────────────────────────────────────
+// ── Core: discover + monitor all instances ────────────────────────────────────
 
 export async function monitorInstances(): Promise<MonitorReport> {
-  // 1. Discover all instances in the region
-  const describeResponse = await ec2.send(new DescribeInstancesCommand({}));
-  const reservations = describeResponse.Reservations ?? [];
+  // 1. Discover every instance in the region (paginated — a single call caps out).
+  const reservations = [];
+  let nextToken: string | undefined;
+  do {
+    const page = await ec2.send(new DescribeInstancesCommand({ NextToken: nextToken }));
+    reservations.push(...(page.Reservations ?? []));
+    nextToken = page.NextToken;
+  } while (nextToken);
 
-  // 2. Get instance status checks
+  // 2. Status checks. Absent entries stay `unknown` — never assume healthy.
   const statusResponse = await ec2.send(
     new DescribeInstanceStatusCommand({ IncludeAllInstances: true }),
   );
-  const statusMap = new Map(
+  const statusMap = new Map<string, HealthCheck>(
     (statusResponse.InstanceStatuses ?? []).map((s) => [
-      s.InstanceId,
-      s.InstanceStatus?.Status === "ok" && s.SystemStatus?.Status === "ok",
+      s.InstanceId!,
+      s.InstanceStatus?.Status === "ok" && s.SystemStatus?.Status === "ok"
+        ? "ok"
+        : "failed",
     ]),
   );
 
-  // 3. Collect metrics per instance
-  const instances: InstanceMetrics[] = [];
+  // 3. Collect metrics for every running instance, in parallel.
+  const discovered = reservations.flatMap((r) => r.Instances ?? []);
 
-  for (const reservation of reservations) {
-    for (const instance of reservation.Instances ?? []) {
+  const instances: InstanceMetrics[] = await Promise.all(
+    discovered.map(async (instance): Promise<InstanceMetrics> => {
       const instanceId = instance.InstanceId!;
       const state = instance.State?.Name ?? "unknown";
       const name =
         instance.Tags?.find((t) => t.Key === "Name")?.Value ?? instanceId;
 
-      // Only fetch metrics for running instances
-      const cpu =
-        state === "running" ? await getCpuUtilization(instanceId) : null;
+      const cpu = state === "running" ? await getCpuUtilization(instanceId) : null;
       const severity = cpuSeverity(cpu);
-      const statusCheckPassed = statusMap.get(instanceId) ?? true;
+      const health: HealthCheck = statusMap.get(instanceId) ?? "unknown";
 
-      // Build anomaly list
       const anomalies: string[] = [];
-      if (severity === "critical")
-        anomalies.push(`CPU critical: ${cpu?.toFixed(1)}%`);
-      else if (severity === "warning")
-        anomalies.push(`CPU warning: ${cpu?.toFixed(1)}%`);
-      if (!statusCheckPassed)
-        anomalies.push("Instance or system status check failed");
+      if (severity === "critical") anomalies.push(`CPU critical: ${cpu?.toFixed(1)}%`);
+      else if (severity === "warning") anomalies.push(`CPU warning: ${cpu?.toFixed(1)}%`);
+      if (health === "failed") anomalies.push("Instance or system status check failed");
+      if (health === "unknown" && state === "running")
+        anomalies.push("Status check result unavailable — health is unconfirmed");
       if (state !== "running" && state !== "stopped")
         anomalies.push(`Unexpected instance state: ${state}`);
 
-      instances.push({
+      return {
         instanceId,
         name,
         state,
         type: instance.InstanceType ?? "unknown",
         az: instance.Placement?.AvailabilityZone ?? "unknown",
-        statusCheckPassed,
+        health,
+        managedByClawOps:
+          instance.Tags?.some((t) => t.Key === "ManagedBy" && t.Value === "ClawOps") ?? false,
+        expiresAt:
+          instance.Tags?.find((t) => t.Key === "ExpiresAt")?.Value ?? null,
         cpu: { average: cpu, severity },
         anomalies,
-      });
-    }
-  }
+      };
+    }),
+  );
 
   const hasAnomalies = instances.some((i) => i.anomalies.length > 0);
-
-  // 4. Build a plain-English summary for OpenClaw to reason over
   const runningCount = instances.filter((i) => i.state === "running").length;
   const anomalyCount = instances.filter((i) => i.anomalies.length > 0).length;
 
   const summary = hasAnomalies
-    ? `⚠️ ${anomalyCount} of ${instances.length} instances have anomalies. ${runningCount} running in ${REGION}.`
-    : `✅ All ${instances.length} instances healthy. ${runningCount} running in ${REGION}.`;
+    ? `${anomalyCount} of ${instances.length} instances have anomalies. ${runningCount} running in ${REGION}.`
+    : `All ${instances.length} instances healthy. ${runningCount} running in ${REGION}.`;
 
   return {
     region: REGION,
@@ -164,31 +143,22 @@ export async function monitorInstances(): Promise<MonitorReport> {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+//
+// These run with whatever credentials the process holds. Under the target
+// design the agent's own role cannot call stop/terminate at all — those need
+// short-lived credentials minted by the broker after a human approves.
 
-// LOW RISK — auto-execute
 export async function rebootInstance(instanceId: string): Promise<string> {
   await ec2.send(new RebootInstancesCommand({ InstanceIds: [instanceId] }));
-  return `✅ Reboot initiated for ${instanceId}`;
+  return `Reboot initiated for ${instanceId}`;
 }
 
 export async function startInstance(instanceId: string): Promise<string> {
   await ec2.send(new StartInstancesCommand({ InstanceIds: [instanceId] }));
-  return `✅ Start initiated for ${instanceId}`;
+  return `Start initiated for ${instanceId}`;
 }
 
-// HIGH RISK — only called after explicit Slack approval
 export async function stopInstance(instanceId: string): Promise<string> {
   await ec2.send(new StopInstancesCommand({ InstanceIds: [instanceId] }));
-  return `🛑 Stop initiated for ${instanceId}`;
-}
-
-// ── Entrypoint (for direct CLI testing) ──────────────────────────────────────
-
-if (require.main === module) {
-  monitorInstances()
-    .then((report) => console.log(JSON.stringify(report, null, 2)))
-    .catch((err) => {
-      console.error("Monitor error:", err.message);
-      process.exit(1);
-    });
+  return `Stop initiated for ${instanceId}`;
 }
