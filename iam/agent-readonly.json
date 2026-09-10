@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LookButDoNotTouch",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics",
+        "ssm:DescribeInstanceInformation",
+        "ssm:GetCommandInvocation",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
