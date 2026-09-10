@@ -1,12 +1,12 @@
 # 🦞 ClawOps — AI-Powered DevOps Monitoring
 
-> Intelligent cloud infrastructure monitoring powered by OpenClaw, delivering real-time insights and actionable alerts directly to your Slack channel.
+> Intelligent cloud infrastructure monitoring powered by NanoClaw, delivering real-time insights and actionable alerts directly to your Slack channel.
 
 ***
 
 ## Overview
 
-ClawOps is an AI-driven DevOps monitoring system built on top of [OpenClaw](https://openclaw.ai) — an open-source personal AI agent runtime. It continuously watches your cloud infrastructure, understands what it sees, and communicates with your development team through Slack in plain, human language.
+ClawOps is an AI-driven DevOps monitoring system built on top of [NanoClaw](https://nanoclaw.dev) — an open-source personal AI agent runtime. It continuously watches your cloud infrastructure, understands what it sees, and communicates with your development team through Slack in plain, human language.
 
 Rather than just forwarding raw metrics or threshold breach alerts, ClawOps uses AI to **correlate signals, reason about anomalies, and suggest — or take — appropriate action**. Think of it as giving your infrastructure a voice, and your team a way to talk back to it.
 
@@ -21,7 +21,7 @@ ClawOps directly addresses this by applying AI-driven observability to infrastru
 - **Detects idle and underutilised servers** — identifies instances running below meaningful CPU/memory thresholds over sustained periods
 - **Recommends or auto-executes green actions** — suggests stopping, pausing, or right-sizing instances to eliminate wasteful compute
 - **Estimates carbon impact** — maps server utilisation to estimated energy consumption and CO₂ output using regional grid carbon intensity (e.g. UAE grid: ~0.4 kg CO₂/kWh)
-- **Tracks sustainability over time** — leverages OpenClaw's persistent memory to surface trends like "this server has been under 5% CPU for 3 days"
+- **Tracks sustainability over time** — leverages NanoClaw's persistent memory to surface trends like "this server has been under 5% CPU for 3 days"
 
 ### Carbon Footprint Estimation (Planned)
 
@@ -30,9 +30,9 @@ ClawOps will expose a sustainability summary per instance:
 ```
 Instance:     prod-worker-3
 Avg CPU:      4.2% (last 72h)
-Est. Power:   ~180W idle draw
-Est. CO₂:     ~3.1 kg over 72h
-Recommendation: STOP instance — save ~3.1 kg CO₂ and reduce cost by ~$12
+Est. Power:   ~9W attributable draw
+Est. CO₂:     ~0.26 kg over 72h  (0.65 kWh x 0.4 kg/kWh, UAE grid)
+Recommendation: STOP instance — save ~0.26 kg CO₂ and ~$12/month
 ```
 
 This aligns directly with **UAE Net Zero 2050** goals, enabling enterprises and developers to make infrastructure decisions that are not just operationally sound, but environmentally responsible.
@@ -82,7 +82,7 @@ The system is composed of three layers that work together continuously:
 
 ### 1. Data Collection — Cloud Provider SDK
 
-A custom OpenClaw skill written in TypeScript uses your **cloud provider's SDK** to pull live metrics and instance state. This includes CPU utilisation, memory, disk I/O, network throughput, and instance health status.
+A custom NanoClaw skill written in TypeScript uses your **cloud provider's SDK** to pull live metrics and instance state. This includes CPU utilisation, memory, disk I/O, network throughput, and instance health status.
 
 ClawOps ships with adapters for major cloud providers out of the box, and the provider interface is designed to be extensible — so adding support for a new platform is straightforward.
 
@@ -93,11 +93,11 @@ The skill is invoked on a schedule (heartbeat) and also on-demand when commands 
 - GCP (Compute Engine + Cloud Monitoring) *(planned)*
 - Azure (Virtual Machines + Azure Monitor) *(planned)*
 
-### 2. AI Analysis — OpenClaw Agent
+### 2. AI Analysis — NanoClaw Agent
 
-OpenClaw acts as the brain of the system. It receives the raw metrics from the skill, reasons over them using its underlying AI model, and produces a human-readable diagnosis. Because OpenClaw has **persistent memory**, it builds context over time — it can recognise that a server behaves differently on weekends, or that a particular instance has been gradually degrading over several days.
+NanoClaw acts as the brain of the system. It receives the raw metrics from the skill, reasons over them using its underlying AI model, and produces a human-readable diagnosis. Because NanoClaw has **persistent memory**, it builds context over time — it can recognise that a server behaves differently on weekends, or that a particular instance has been gradually degrading over several days.
 
-OpenClaw decides whether the current state is:
+NanoClaw decides whether the current state is:
 - **Normal** → send a routine periodic summary to Slack
 - **Unusual** → send an immediate alert with an explanation and suggested action
 - **Critical** → send an urgent alert and either auto-remediate (low-risk) or request human approval (high-risk)
@@ -113,7 +113,7 @@ Slack serves as both the **notification surface and the command interface**. The
 - Configure monitoring preferences on the fly
 - **Review sustainability recommendations and approve green actions**
 
-**Low-risk actions** (e.g. restarting a non-critical service, fetching logs) are executed automatically by OpenClaw without human approval. **High-risk actions** (e.g. terminating an instance, scaling down a cluster) are always presented to the team first with a clear explanation before anything is executed.
+**Low-risk actions** (e.g. restarting a non-critical service, fetching logs) are executed automatically by NanoClaw without human approval. **High-risk actions** (e.g. terminating an instance, scaling down a cluster) are always presented to the team first with a clear explanation before anything is executed.
 
 ***
 
@@ -136,7 +136,7 @@ Slack serves as both the **notification surface and the command interface**. The
                │
                ▼
 ┌─────────────────────────────────┐
-│         OpenClaw Agent           │
+│         NanoClaw Agent           │
 │  AI analysis & reasoning         │
 │  Persistent memory per instance  │
 │  Scheduled heartbeats            │
@@ -162,12 +162,12 @@ Slack serves as both the **notification surface and the command interface**. The
 
 | Layer | Technology |
 |---|---|
-| AI Agent Runtime | [OpenClaw](https://openclaw.ai) |
+| AI Agent Runtime | [NanoClaw](https://nanoclaw.dev) |
 | Cloud Metrics & Control | Cloud Provider SDK (pluggable) |
 | Language | TypeScript |
-| Communication | Slack (via OpenClaw's native Slack integration) |
+| Communication | Slack (via NanoClaw's native Slack integration) |
 | Infrastructure Setup | Terraform (IAM / permissions, metric alarms) |
-| Package Manager | pnpm |
+| Package Manager | Yarn 4 |
 
 ***
 
@@ -191,7 +191,7 @@ Slack serves as both the **notification surface and the command interface**. The
 clawops/
 ├── README.md
 ├── skill/
-│   ├── skill.md              # OpenClaw skill definition
+│   ├── skill.md              # agent instructions
 │   ├── monitor.ts            # Metrics fetching (provider-agnostic interface)
 │   ├── actions.ts            # Remediation action handlers
 │   ├── carbon.ts             # Carbon footprint estimation logic
