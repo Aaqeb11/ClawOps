@@ -1,0 +1,67 @@
+diff --git a/container/agent-runner/package.json b/container/agent-runner/package.json
+index dc8a32cc..68dd7a92 100644
+--- a/container/agent-runner/package.json
++++ b/container/agent-runner/package.json
+@@ -12,6 +12,7 @@
+     "@anthropic-ai/claude-agent-sdk": "^0.3.257",
+     "@anthropic-ai/sdk": "^0.108.0",
+     "@modelcontextprotocol/sdk": "^1.29.0",
++    "@opencode-ai/sdk": "1.4.17",
+     "cron-parser": "^5.0.0",
+     "zod": "^4.0.0"
+   },
+diff --git a/container/agent-runner/src/providers/index.ts b/container/agent-runner/src/providers/index.ts
+index ec47b3d4..207e8f74 100644
+--- a/container/agent-runner/src/providers/index.ts
++++ b/container/agent-runner/src/providers/index.ts
+@@ -3,3 +3,4 @@
+ // level. Skills add a new provider by appending one import line below.
+ 
+ import './claude.js';
++import './opencode.js';
+diff --git a/container/cli-tools.json b/container/cli-tools.json
+index 43e8355f..2bba5cc4 100644
+--- a/container/cli-tools.json
++++ b/container/cli-tools.json
+@@ -8,5 +8,9 @@
+     "name": "@anthropic-ai/claude-code",
+     "version": "2.1.257",
+     "onlyBuilt": true
++  },
++  {
++    "name": "opencode-ai",
++    "version": "1.4.17"
+   }
+ ]
+diff --git a/package.json b/package.json
+index 9af40ac8..ebee2e12 100644
+--- a/package.json
++++ b/package.json
+@@ -33,6 +33,7 @@
+     "test:watch": "vitest"
+   },
+   "dependencies": {
++    "@chat-adapter/slack": "4.29.0",
+     "@clack/core": "^1.2.0",
+     "@clack/prompts": "^1.2.0",
+     "@onecli-sh/sdk": "2.2.1",
+diff --git a/src/channels/index.ts b/src/channels/index.ts
+index e9b3bd1b..2a110a55 100644
+--- a/src/channels/index.ts
++++ b/src/channels/index.ts
+@@ -7,3 +7,5 @@
+ // self-registration import below.
+ 
+ import './cli.js';
++import './slack.js';
++import './slack-a2a-guard.js';
+diff --git a/src/providers/index.ts b/src/providers/index.ts
+index 9060a6b4..3e03635c 100644
+--- a/src/providers/index.ts
++++ b/src/providers/index.ts
+@@ -4,3 +4,5 @@
+ // needs (claude) don't appear here.
+ //
+ // Skills add a new provider by appending one import line below.
++
++import './opencode.js';
