@@ -1,6 +1,6 @@
 ---
 name: clawops
-description: Watch and operate AWS EC2 infrastructure in ap-south-1. Lists instances, reads CloudWatch metrics and status checks, flags anomalies, and can restart or start instances. Stopping an instance requires a human approval first. Use whenever someone asks about servers, instances, CPU, uptime, cloud costs, or wants something restarted.
+description: Watch and operate AWS EC2 infrastructure in ap-south-1. Lists instances, reads CloudWatch metrics and status checks, flags anomalies, and can restart, start or stop instances. Every state change requires a human approval first. Use whenever someone asks about servers, instances, CPU, uptime, cloud costs, or wants something restarted.
 ---
 
 # ClawOps
@@ -15,8 +15,9 @@ cd /workspace/extra/clawops && AWS_SHARED_CREDENTIALS_FILE=./.aws-credentials no
 ```
 
 Those credentials are **read-only by design**. AWS itself refuses anything that
-would change infrastructure, so a `stop` will come back `AccessDenied` until a
-human has approved it. That is the system working, not a fault.
+would change infrastructure, so **any** of `reboot`, `start` or `stop` comes back
+`AccessDenied` until a human has approved it and a scoped credential has been
+minted. That is the system working, not a fault.
 
 Every command prints JSON. `ok: true` means it worked; `ok: false` carries an
 `error` field explaining why.
@@ -26,8 +27,8 @@ Every command prints JSON. `ok: true` means it worked; `ok: false` carries an
 | Command | What it does | Approval |
 |---|---|---|
 | `monitor` | Health report for every instance in the region | none |
-| `reboot <id>` | Restart an instance | none |
-| `start <id>` | Start a stopped instance | none |
+| `reboot <id>` | Restart an instance | **required** |
+| `start <id>` | Start a stopped instance | **required** |
 | `stop <id>` | Stop an instance | **required** |
 
 Instance ids look like `i-0a3f9c21b7e4d500`. The command rejects anything else,
@@ -58,20 +59,20 @@ like a runaway process rather than a traffic spike" is useful. "CPU is 94%" is n
 
 If you have flagged the same instance before, say so — repetition is a signal.
 
-## Stopping an instance
+## Changing anything
 
-Do not run `stop` off your own judgement. Post what you intend to do and why,
-and wait for a person to approve it.
+Never run `reboot`, `start` or `stop` off your own judgement. Post what you
+intend to do and why, and wait for a person to approve it.
 
 ```
-Stop request — <name> (<instanceId>)
+Action request — <action> on <name> (<instanceId>)
 Reason: <your reasoning>
-Effect: the instance stops; anything running on it goes away.
+Effect: <what actually happens to whatever is running on it>
 
 Reply APPROVE to confirm, or DENY to cancel.
 ```
 
-Only run `stop` after someone explicitly approves. If the command returns
+Only run the command after someone explicitly approves. If it returns
 `AccessDenied`, that is the system working as designed, not a bug — it means
 the credentials for this action have not been granted yet. Report it plainly
 and ask for approval.

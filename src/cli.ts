@@ -33,8 +33,8 @@ function emit(payload: unknown): void {
 const USAGE = `clawops <command>
 
   monitor              Health report for every instance in the region
-  reboot  <id>         Restart an instance          (low risk)
-  start   <id>         Start a stopped instance     (low risk)
+  reboot  <id>         Restart an instance          (needs approval)
+  start   <id>         Start a stopped instance     (needs approval)
   stop    <id>         Stop an instance             (needs approval)
 
 Instance ids look like i-0a3f9c21b7e4d500.`;
@@ -61,9 +61,9 @@ async function main(): Promise<void> {
     }
 
     case "stop": {
-      // Today this succeeds if the process holds broad credentials. Once the
-      // two-role split lands, the agent's own role is refused here and the
-      // call only works with credentials the broker minted after approval.
+      // The agent's own credentials are read-only, so AWS refuses this today.
+      // It succeeds only with a session credential minted after a human
+      // approval — iam/elevated-perms.json bounds what such a session may touch.
       const id = instanceIdOrDie(arg);
       emit({ message: await stopInstance(id), instanceId: id });
       return;
