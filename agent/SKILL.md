@@ -11,8 +11,15 @@ Everything goes through one command. Run it exactly like this — the credential
 file is what gives you read access to AWS, so don't drop it:
 
 ```bash
-cd /workspace/extra/clawops && AWS_SHARED_CREDENTIALS_FILE=./.aws-credentials node dist/cli.js <command>
+cd /workspace/extra/clawops && \
+  AWS_SHARED_CREDENTIALS_FILE=./.aws-credentials \
+  CLAWOPS_BROKER_URL=http://host.docker.internal:3001 \
+  node dist/cli.js <command>
 ```
+
+You run inside a container, so `localhost` is the container itself, not the
+machine. `host.docker.internal` is how the approval broker is reached — keep
+that variable on every command or writes will report the broker as unreachable.
 
 Those credentials are **read-only by design**. AWS itself refuses anything that
 would change infrastructure. You cannot grant yourself permission — a separate
