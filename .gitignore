@@ -19,5 +19,12 @@ node_modules
 # build output
 dist/
 
-# Agent AWS credentials - never commit
-.aws-credentials
+# Agent AWS credentials - never commit.
+# Glob, not the exact name: console exports land as .tsv/.csv and an exact-name
+# rule silently leaves those tracked.
+.aws-credentials*
+
+# Secrets of every other shape
+.env
+.env.*
+!.env.example
