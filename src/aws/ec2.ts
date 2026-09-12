@@ -13,6 +13,7 @@ import {
 } from "@aws-sdk/client-cloudwatch";
 
 import type { InstanceMetrics, MonitorReport, HealthCheck } from "../types";
+import type { ScopedCredentials } from "./sts";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -144,21 +145,43 @@ export async function monitorInstances(): Promise<MonitorReport> {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 //
-// These run with whatever credentials the process holds. Under the target
-// design the agent's own role cannot call stop/terminate at all — those need
-// short-lived credentials minted by the broker after a human approves.
+// Every action takes the credentials it must run under. There is no default:
+// the agent's own role is read-only, so passing nothing here gets an
+// AccessDenied from AWS. Working credentials only exist after a human has
+// approved the request and the broker has minted a session for it.
 
-export async function rebootInstance(instanceId: string): Promise<string> {
-  await ec2.send(new RebootInstancesCommand({ InstanceIds: [instanceId] }));
+/** An EC2 client bound to one approved action's short-lived session. */
+function elevatedClient(credentials: ScopedCredentials): EC2Client {
+  return new EC2Client({
+    region: REGION,
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+    },
+  });
+}
+
+export async function rebootInstance(
+  instanceId: string,
+  credentials: ScopedCredentials,
+): Promise<string> {
+  await elevatedClient(credentials).send(new RebootInstancesCommand({ InstanceIds: [instanceId] }));
   return `Reboot initiated for ${instanceId}`;
 }
 
-export async function startInstance(instanceId: string): Promise<string> {
-  await ec2.send(new StartInstancesCommand({ InstanceIds: [instanceId] }));
+export async function startInstance(
+  instanceId: string,
+  credentials: ScopedCredentials,
+): Promise<string> {
+  await elevatedClient(credentials).send(new StartInstancesCommand({ InstanceIds: [instanceId] }));
   return `Start initiated for ${instanceId}`;
 }
 
-export async function stopInstance(instanceId: string): Promise<string> {
-  await ec2.send(new StopInstancesCommand({ InstanceIds: [instanceId] }));
+export async function stopInstance(
+  instanceId: string,
+  credentials: ScopedCredentials,
+): Promise<string> {
+  await elevatedClient(credentials).send(new StopInstancesCommand({ InstanceIds: [instanceId] }));
   return `Stop initiated for ${instanceId}`;
 }

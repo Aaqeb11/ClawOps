@@ -3,9 +3,11 @@
   "packageManager": "yarn@4.9.2",
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
-    "@aws-sdk/client-ec2": "^3.1000.0"
+    "@aws-sdk/client-ec2": "^3.1000.0",
+    "@aws-sdk/client-sts": "3.1000.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-iam": "3.1000.0",
     "@types/node": "^25.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
@@ -16,6 +18,9 @@
   "scripts": {
     "build": "tsc",
     "clawops": "node dist/cli.js",
-    "dev": "ts-node src/cli.ts"
+    "dev": "ts-node src/cli.ts",
+    "broker": "node dist/broker/server.js",
+    "broker:dev": "ts-node src/broker/server.ts",
+    "check": "ts-node src/broker/store.check.ts"
   }
 }
