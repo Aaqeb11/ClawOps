@@ -21,3 +21,4 @@ dist/
 
 # Agent AWS credentials - never commit
 .aws-credentials
+.env
