@@ -6,7 +6,7 @@ anything** — until a named human approves the specific action on their phone.
 At that moment the agent is handed AWS credentials that can do exactly one thing,
 to one instance, for fifteen minutes. Then they stop working.
 
----
+***
 
 ## The problem
 
@@ -20,7 +20,34 @@ a log line doesn't get a refusal from our code — it gets `AccessDenied` from A
 
 Write access is minted per-action, per-approval, per-resource, and expires.
 
----
+***
+
+## 🌱 Sustainability & Green Computing
+
+Cloud infrastructure is one of the fastest-growing contributors to global carbon emissions. Studies estimate that **up to 30% of cloud servers are idle or significantly underutilised** at any given time — consuming power without delivering value.
+
+ClawOps directly addresses this by applying AI-driven observability to infrastructure efficiency:
+
+- **Detects idle and underutilised servers** — identifies instances running below meaningful CPU/memory thresholds over sustained periods
+- **Recommends or auto-executes green actions** — suggests stopping, pausing, or right-sizing instances to eliminate wasteful compute
+- **Estimates carbon impact** — maps server utilisation to estimated energy consumption and CO₂ output using regional grid carbon intensity (e.g. UAE grid: ~0.4 kg CO₂/kWh)
+- **Tracks sustainability over time** — leverages OpenClaw's persistent memory to surface trends like "this server has been under 5% CPU for 3 days"
+
+### Carbon Footprint Estimation (Planned)
+
+ClawOps will expose a sustainability summary per instance:
+
+```
+Instance:     prod-worker-3
+Avg CPU:      4.2% (last 72h)
+Est. Power:   ~180W idle draw
+Est. CO₂:     ~3.1 kg over 72h
+Recommendation: STOP instance — save ~3.1 kg CO₂ and reduce cost by ~$12
+```
+
+This aligns directly with **UAE Net Zero 2050** goals, enabling enterprises and developers to make infrastructure decisions that are not just operationally sound, but environmentally responsible.
+
+***
 
 ## How permission works
 
@@ -54,7 +81,7 @@ overlap between what the role allows and what the policy allows, so there is no
 way to request more than the role already had. 900 seconds is the AWS floor for
 `AssumeRole`, not a number we picked.
 
----
+***
 
 ## The flow
 
@@ -295,7 +322,7 @@ aws ec2 terminate-instances --instance-ids i-OTHER --dry-run
 aws ec2 describe-instances
 ```
 
----
+***
 
 ## Roadmap
 
