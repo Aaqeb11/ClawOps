@@ -5,14 +5,10 @@
 // model that has been fed a hostile log line still cannot reach anything
 // beyond these verbs.
 //
-// State changes are deliberately two calls, never one:
-//
-//   clawops stop i-0abc --reason "idle 72h"   -> proposes, returns a requestId
-//   (a human approves it)
-//   clawops stop i-0abc --request <requestId> -> mints credentials, executes
-//
-// The agent cannot collapse those into one step, because the approval the
-// second call spends is created by someone else.
+// Reads need nothing. Every write goes through the approval broker, which
+// prompts a human on their phone and returns credentials good for that one
+// action on that one instance. The agent's own credentials are read-only, so
+// there is no path around it.
 
 import {
   monitorInstances,
@@ -20,9 +16,8 @@ import {
   startInstance,
   stopInstance,
 } from "./aws/ec2";
-import type { ScopedCredentials } from "./aws/sts";
-import { mintCredentials, requestApproval } from "./broker/client";
-import type { Action } from "./broker/store";
+import { requestAction, type ScopedCredentials } from "./broker/client";
+import type { Action } from "./types";
 
 const INSTANCE_ID = /^i-[0-9a-f]{8,17}$/;
 
@@ -69,58 +64,47 @@ function flags(argv: string[], allowed: string[]): Record<string, string> {
 
 const USAGE = `clawops <command>
 
-  monitor                              Health report for every instance in the region
+  monitor                          Health report for every instance in the region
 
-  reboot <id> --reason "<why>"         Propose a restart      -> returns a requestId
-  start  <id> --reason "<why>"         Propose a start        -> returns a requestId
-  stop   <id> --reason "<why>"         Propose a stop         -> returns a requestId
+  stop   <id> --reason "<why>" --by <user>    Stop an instance      (needs approval)
+  start  <id> --reason "<why>" --by <user>    Start an instance     (needs approval)
+  reboot <id> --reason "<why>" --by <user>    Restart an instance   (needs approval)
 
-  reboot <id> --request <requestId>    Execute, once a human has approved it
-  start  <id> --request <requestId>
-  stop   <id> --request <requestId>
+--by is the requester's id as the broker knows them (its approver map decides
+whose phone is prompted). Each write waits for that human to approve.
 
 Instance ids look like i-0a3f9c21b7e4d500.`;
 
 /**
- * One state-changing verb. Propose when given --reason, execute when given
- * --request. Asking for both is rejected rather than guessed at: the two
- * halves of this flow are supposed to be separated by a human.
+ * One state-changing verb. Asks the broker, which blocks until a human answers
+ * on their phone, then runs the action with the credentials that come back.
  */
 async function changeState(action: Action, argv: string[]): Promise<void> {
   const instanceId = instanceIdOrDie(argv[0]);
-  const options = flags(argv.slice(1), ["reason", "request"]);
+  const options = flags(argv.slice(1), ["reason", "by"]);
 
-  if (options.reason && options.request)
-    fail("Pass --reason to propose an action or --request to execute an approved one, not both.");
+  // No silent default for either. An approver reading a push notification
+  // needs to know why, and the broker needs to know whose phone to ring.
+  if (!options.reason)
+    fail(`${action} needs --reason "<why>" — the approver sees this and nothing else.`);
+  if (!options.by) fail(`${action} needs --by <user> so the broker knows who to ask.`);
 
-  if (options.reason) {
-    const request = await requestApproval(action, instanceId, options.reason);
-    emit({
-      stage: "awaiting-approval",
-      requestId: request.requestId,
-      action,
-      instanceId,
-      reason: request.reason,
-      message: `Approval required. Post this to the channel and wait for a human to approve request ${request.requestId}.`,
-    });
-    return;
-  }
+  const { credentials, approvedBy, planId } = await requestAction(
+    action,
+    instanceId,
+    options.reason,
+    options.by,
+  );
 
-  if (options.request) {
-    const { credentials, approvedBy } = await mintCredentials(options.request, action, instanceId);
-    const message = await RUNNERS[action](instanceId, credentials);
-    emit({
-      stage: "executed",
-      requestId: options.request,
-      instanceId,
-      approvedBy,
-      credentialsExpireAt: credentials.expiration,
-      message,
-    });
-    return;
-  }
-
-  fail(`${action} needs --reason "<why>" to propose it, or --request <requestId> to execute an approved one.`);
+  const message = await RUNNERS[action](instanceId, credentials);
+  emit({
+    stage: "executed",
+    planId,
+    instanceId,
+    approvedBy,
+    credentialsExpireAt: credentials.expiration,
+    message,
+  });
 }
 
 async function main(): Promise<void> {

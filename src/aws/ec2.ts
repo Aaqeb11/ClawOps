@@ -13,7 +13,7 @@ import {
 } from "@aws-sdk/client-cloudwatch";
 
 import type { InstanceMetrics, MonitorReport, HealthCheck } from "../types";
-import type { ScopedCredentials } from "./sts";
+import type { ScopedCredentials } from "../broker/client";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 

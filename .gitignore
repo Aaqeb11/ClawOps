@@ -28,3 +28,14 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Broker approval database. Runtime state, not source -- committing it puts
+# real approval records in git and conflicts on every pull.
+clawops.db
+*.db-journal
+
+# This repo is Yarn 4 (see packageManager). An npm lockfile alongside
+# yarn.lock means two resolvers disagreeing about the same tree.
+package-lock.json
+
+.DS_Store

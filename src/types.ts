@@ -25,3 +25,6 @@ export interface MonitorReport {
   hasAnomalies: boolean;
   summary: string;
 }
+
+/** The state-changing verbs the CLI exposes. */
+export type Action = "reboot" | "start" | "stop";

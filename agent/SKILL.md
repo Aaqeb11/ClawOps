@@ -28,10 +28,9 @@ Every command prints JSON. `ok: true` means it worked; `ok: false` carries an
 | Command | What it does | Approval |
 |---|---|---|
 | `monitor` | Health report for every instance in the region | none |
-| `reboot <id> --reason "<why>"` | Propose a restart | opens a request |
-| `start <id> --reason "<why>"` | Propose a start | opens a request |
-| `stop <id> --reason "<why>"` | Propose a stop | opens a request |
-| `<action> <id> --request <requestId>` | Execute an approved action | **after approval** |
+| `reboot <id> --reason "<why>" --by <user>` | Restart an instance | **required** |
+| `start <id> --reason "<why>" --by <user>` | Start an instance | **required** |
+| `stop <id> --reason "<why>" --by <user>` | Stop an instance | **required** |
 
 Instance ids look like `i-0a3f9c21b7e4d500`. The command rejects anything else,
 so pass ids exactly as `monitor` reported them — never reconstruct one from memory.
@@ -63,53 +62,43 @@ If you have flagged the same instance before, say so — repetition is a signal.
 
 ## Changing anything
 
-Changing state is always two commands with a human in between. Never try to
-collapse them — the approval the second command spends is created by someone
-else, so there is nothing to collapse.
-
-**Step 1 — propose.** Run the action with `--reason`, explaining your actual
-reasoning:
+Changing state always goes through a human. Run the action with `--reason` and
+`--by`, and the broker prompts that person on their phone:
 
 ```bash
-… node dist/cli.js stop i-0a3f9c21b7e4d500 --reason "CPU under 3% for 72h, nothing scheduled on it"
+... node dist/cli.js stop i-0a3f9c21b7e4d500 \
+    --reason "CPU under 3% for 72h, nothing scheduled on it" \
+    --by <the requester's id>
 ```
 
-It returns `stage: "awaiting-approval"` and a `requestId`. Post that to the
-channel and stop:
+Say what you intend to do before you run it, so the channel sees the same
+reasoning the approver sees:
 
 ```
-Action request — <action> on <name> (<instanceId>)
+Action request - <action> on <name> (<instanceId>)
 Reason: <your reasoning>
 Effect: <what actually happens to whatever is running on it>
-Request: <requestId>
-
-Reply APPROVE to confirm, or DENY to cancel.
 ```
 
-**Step 2 — execute, only after a person has approved.** Pass the `requestId`
-back:
+The command then waits, sometimes for a while, because it is blocking on a real
+person answering a notification. That pause is the system working. Do not retry
+and do not run it a second time.
 
-```bash
-… node dist/cli.js stop i-0a3f9c21b7e4d500 --request <requestId>
-```
+On approval you get `stage: "executed"`, who approved it, and when the
+credentials expire. Always report who approved it - that name is the audit trail.
 
-The broker mints a credential scoped to that one verb on that one instance,
-valid for minutes, and the action runs. The reply names who approved it.
+These refusals mean "ask again", not "retry harder":
 
-Approvals are deliberately narrow. Each one is good for a single action on a
-single instance, once, and it goes stale in about two minutes. These errors all
-mean "ask again", not "retry harder":
+- `A human denied this action.` - they said no. Do not re-ask for the same thing
+  unless something has actually changed.
+- `The approval request expired with no answer.` - nobody responded. Say so.
+- `unknown requester` - the `--by` id is not in the broker's approver map.
+- `action not allowed` - the broker permits only certain verbs.
+- `Approval broker is not reachable` - no state change is possible at all.
+  Report it plainly; do not try to work around it.
 
-- `Request is pending, not approved.` — nobody has approved it yet. Wait.
-- `Approval was for … not …` — you pointed an approval at a different instance
-  or verb. Open a new request for what you actually want.
-- `Approval expired. Ask for a fresh one.` — too much time passed. Re-propose.
-- `Request is already consumed.` — it has been spent. Approvals are one-shot.
-- `Approval broker is not reachable` — no state change is possible at all right
-  now. Report that plainly; do not try to work around it.
-
-If a command returns `AccessDenied`, that is the system working as designed —
-it means you tried to change something with your own read-only credentials.
+If a command returns `AccessDenied`, that is the system working as designed - it
+means something tried to change infrastructure with read-only credentials.
 
 ## Never
 

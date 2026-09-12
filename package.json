@@ -4,12 +4,17 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
     "@aws-sdk/client-ec2": "^3.1000.0",
-    "@aws-sdk/client-sts": "3.1000.0"
+    "@aws-sdk/client-sts": "3.1000.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-iam": "3.1000.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.3.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   },
   "version": "0.1.0",
@@ -19,8 +24,7 @@
     "build": "tsc",
     "clawops": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
-    "broker": "node dist/broker/server.js",
-    "broker:dev": "ts-node src/broker/server.ts",
+    "broker": "tsx src/broker/server.ts",
     "check": "ts-node src/broker/store.check.ts"
   }
 }
