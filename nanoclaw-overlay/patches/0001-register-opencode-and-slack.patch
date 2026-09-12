@@ -49,12 +49,13 @@ diff --git a/src/channels/index.ts b/src/channels/index.ts
 index e9b3bd1b..2a110a55 100644
 --- a/src/channels/index.ts
 +++ b/src/channels/index.ts
-@@ -7,3 +7,5 @@
+@@ -7,3 +7,6 @@
  // self-registration import below.
- 
+
  import './cli.js';
 +import './slack.js';
 +import './slack-a2a-guard.js';
++import './ambiguous.js';
 diff --git a/src/providers/index.ts b/src/providers/index.ts
 index 9060a6b4..3e03635c 100644
 --- a/src/providers/index.ts
