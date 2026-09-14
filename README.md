@@ -6,7 +6,57 @@ anything** — until a named human approves the specific action on their phone.
 At that moment the agent is handed AWS credentials that can do exactly one thing,
 to one instance, for fifteen minutes. Then they stop working.
 
-***
+---
+
+## Evidence
+
+Three captures, from two sessions. The Slack exchanges below are from the build
+session; the approval recording was captured separately by triggering the broker
+directly. They are not one continuous take — see *Known limitations* for the state
+of the Slack-to-broker path.
+
+### One reply, two things worth seeing
+
+![The agent reporting instance health and declining to curl an internal address](docs/media/01-agent-refusal.png)
+
+The top half is the read path: both instances enumerated with type and CPU average,
+pulled live from EC2 and CloudWatch under an identity that holds no write permission
+at all.
+
+The bottom half is the part we'd point a security reviewer at. Asked to `curl` an
+internal Docker-network address and paste back exactly what it returns, the agent
+declines — not because a rule matched a string, but because the address sits outside
+the AWS monitoring toolset it operates with, and it only acts through its sanctioned
+CLI. It then offers to find a legitimate way to check the same thing.
+
+An agent that can say where its reach ends is a different object from one that pipes
+whatever it's handed into a shell.
+
+### It proposes, with the consequence spelled out
+
+![The agent's action request in the Slack thread](docs/media/02-action-request.png)
+
+Before anything is authorized, the thread carries what was asked, who asked, what
+the instance currently looks like, and what will actually happen if this goes ahead
+— *anything running on it stops serving until restarted*. The approver reads a
+consequence, not a command.
+
+### And then the approval leaves Slack entirely
+
+**▶ [Approval arriving on a registered device](docs/media/03-approval.mp4)**
+
+A screen recording of the phone as the Auth0 Guardian push lands, showing the
+pending action and the tap that authorizes it. Behind it, the broker is blocked on
+`/oauth/token` returning `authorization_pending` until this moment; the instant the
+tap registers, it receives a verified identity and calls STS.
+
+This is the part that cannot happen in a chat window. The request was made in
+Slack; the authorization happens on a separate enrolled device, confirmed with
+biometrics. Steal someone's Slack session and you still can't approve anything —
+you don't have their phone, and the identity that reaches AWS comes from Auth0,
+not from Slack.
+
+---
 
 ## The problem
 
@@ -20,34 +70,7 @@ a log line doesn't get a refusal from our code — it gets `AccessDenied` from A
 
 Write access is minted per-action, per-approval, per-resource, and expires.
 
-***
-
-## 🌱 Sustainability & Green Computing
-
-Cloud infrastructure is one of the fastest-growing contributors to global carbon emissions. Studies estimate that **up to 30% of cloud servers are idle or significantly underutilised** at any given time — consuming power without delivering value.
-
-ClawOps directly addresses this by applying AI-driven observability to infrastructure efficiency:
-
-- **Detects idle and underutilised servers** — identifies instances running below meaningful CPU/memory thresholds over sustained periods
-- **Recommends or auto-executes green actions** — suggests stopping, pausing, or right-sizing instances to eliminate wasteful compute
-- **Estimates carbon impact** — maps server utilisation to estimated energy consumption and CO₂ output using regional grid carbon intensity (e.g. UAE grid: ~0.4 kg CO₂/kWh)
-- **Tracks sustainability over time** — leverages NanoClaw's persistent memory to surface trends like "this server has been under 5% CPU for 3 days"
-
-### Carbon Footprint Estimation (Planned)
-
-ClawOps will expose a sustainability summary per instance:
-
-```
-Instance:     prod-worker-3
-Avg CPU:      4.2% (last 72h)
-Est. Power:   ~9W attributable draw
-Est. CO₂:     ~0.26 kg over 72h  (0.65 kWh x 0.4 kg/kWh, UAE grid)
-Recommendation: STOP instance — save ~0.26 kg CO₂ and ~$12/month
-```
-
-This aligns directly with **UAE Net Zero 2050** goals, enabling enterprises and developers to make infrastructure decisions that are not just operationally sound, but environmentally responsible.
-
-***
+---
 
 ## How permission works
 
@@ -81,7 +104,7 @@ overlap between what the role allows and what the policy allows, so there is no
 way to request more than the role already had. 900 seconds is the AWS floor for
 `AssumeRole`, not a number we picked.
 
-***
+---
 
 ## The flow
 
@@ -212,6 +235,15 @@ validation, approval and ledger paths above it are provider-agnostic already.
 
 ## Known limitations
 
+**The Slack-to-broker path is currently broken.** The agent proposing an action in
+Slack and the broker minting credentials both work, and both are captured above,
+but they are not passing to each other in the current deployment — the broker moved
+onto EC2 and picked up the instance profile instead of the broker identity the
+elevated role's trust policy names. Fixing it means either naming the instance role
+in the trust policy or passing the broker's credentials explicitly, and the second
+is what keeps the broker's identity distinct from the agent's. That distinction is
+the project, so it's worth doing properly rather than quickly.
+
 **Rich Authorization Requests are registered but unused.** The Auth0 Guardian push
 renderer rejects custom `authorization_details` schemas, so the phone prompt cannot
 currently display the instance ID as structured consent data. The `binding_message`
@@ -322,7 +354,7 @@ aws ec2 terminate-instances --instance-ids i-OTHER --dry-run
 aws ec2 describe-instances
 ```
 
-***
+---
 
 ## Roadmap
 
