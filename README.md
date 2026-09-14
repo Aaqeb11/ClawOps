@@ -43,7 +43,7 @@ consequence, not a command.
 
 ### And then the approval leaves Slack entirely
 
-**▶ [Approval arriving on a registered device](docs/media/03-approval.mp4)**
+**▶ [Approval arriving on a registered device](https://github.com/user-attachments/assets/64d7f8db-8e18-436d-917b-10a1b4d15f32)**
 
 A screen recording of the phone as the Auth0 Guardian push lands, showing the
 pending action and the tap that authorizes it. Behind it, the broker is blocked on
